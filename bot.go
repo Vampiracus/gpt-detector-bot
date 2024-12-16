@@ -41,8 +41,8 @@ func main() {
 		panic(err)
 	}
 
-	b.Start(ctx)
 	fmt.Println("Bot started")
+	b.Start(ctx)
 }
 
 func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
