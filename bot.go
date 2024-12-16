@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/signal"
-
-	"fmt"
 
 	"bytes"
 	"encoding/json"
@@ -56,24 +56,40 @@ func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	}
 
 	posturl := "http://" + ip + ":5000/predict"
-	body := []byte(`{ "text":  "` + update.Message.Text + `" }`)
+
+	text := update.Message.Text
+	for i := 0; i < len(text); i++ {
+		if text[i] == '\n' {
+			text = text[:i] + "\\n" + text[i+1:]
+			i++
+		}
+	}
+
+	body := []byte(`{ "text":  "` + text + `" }`)
 	r, err := http.NewRequest("POST", posturl, bytes.NewBuffer(body))
 	if err != nil {
-		panic(err)
+		fmt.Println("[Request error]", err)
+		return
 	}
 	r.Header.Add("Content-Type", "application/json")
 	client := &http.Client{}
 	res, err := client.Do(r)
 	if err != nil {
-		panic(err)
+		fmt.Println("[Client error]", err)
+		return
 	}
 	defer res.Body.Close()
 	post := &Post{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
-		panic(derr)
+		fmt.Println("[decoder error]", derr)
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			fmt.Println("[decoder error]", err)
+		}
+		fmt.Println(string(body))
+		return
 	}
-	fmt.Println("RESPONSE", post.Prediction)
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
